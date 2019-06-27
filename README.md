@@ -4,7 +4,7 @@ Directions:
 
 Open the particle [console](https://console.particle.io/) and select integrations
 
-![integration](integration.png?raw=true "Integration")
+![integration](integrations.png?raw=true "Integration")
 
 Select new integration, and then select webhook
 
