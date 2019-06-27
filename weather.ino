@@ -4,14 +4,6 @@
 #define PIXEL_COUNT 12
 #define PIXEL_TYPE WS2812B
 
-#define CYAN 10,150,70
-#define PURPLE 180,3,180
-#define BLUE 20,20,255
-#define WHITE 255,255,255
-#define GREEN 10,180,10
-#define YELLOW 200,150,0
-#define LIGHTBLUE 135,206,250
-#define INDIGO 75,0,130
 #define OFF 0,0,0
 
 #define TIME_BETWEEN_REQUESTS 120000 // time between API requests in seconds
@@ -20,13 +12,23 @@
 unsigned long last_request_time;
 
 int NUM_CONDITIONS = 10;
+
 char *conditions[] = {
     "clear-day", "clear-night", "rain", "snow", "sleet", "wind", "fog", "cloudy", "partly-cloudy-day", "partly-cloudy-night"
 };
 
+int CYAN[] = {10,150,70};
+int PURPLE[] = {180,3,180};
+int BLUE[] = {20,20,255};
+int RED[] = {255, 0, 0};
+int WHITE[] = {255,255,255};
+int GREEN[] = {10,180,10};
+int YELLOW[] = {200,150,0};
+int LIGHTBLUE[] = {135,206,250};
+int INDIGO[] = {75,0,130};
 // Place your color mappings in here. There is a 1-1 ordered correspondence between the condition array and the color array. For example, the second color in the color
 // array should correspond to "clear-night"
-int colors[] = {LIGHTBLUE, LIGHTBLUE, BLUE, WHITE, WHITE, YELLOW, INDIGO, INDIGO, INDIGO, INDIGO};
+int *colors[] = {CYAN, CYAN, CYAN, RED, RED, RED, PURPLE, RED, CYAN, GREEN};
 
 char *CURRENTLY_KEY = "currently";
 char *CONDITION_KEY = "icon";
@@ -39,12 +41,14 @@ int knop2 = D3;
 int var_knop1 = 0;
 int var_knop2 = 0;
 
-int weather = 1;
+int weather = 0;
+int fired_requests =  0; // This is really hacky
 
-bool publish_debug = false;
+bool publish_debug = true;
 
 void get_current_weather() {
   Particle.publish("weather", NULL, PRIVATE);
+  fired_requests++;
 }
 
 int handle_condition(const char *data, int pos_start) {
@@ -82,23 +86,29 @@ int parse_weather_response(const char *data, const char *target, int parse_index
 }
 
 void drive_leds() {
+    int *color = colors[weather];
     for(int i = 0; i < PIXEL_COUNT; i++) {
-      strip.setPixelColor(i, colors[weather]);
+      strip.setPixelColor(i, color[0], color[1], color[2]);
     }
     strip.show();
 }
 
 void weather_response_handler(const char *event, const char *data) {
+  if (fired_requests == 0) {
+      return;
+  }
+  fired_requests--;
+  Particle.publish("handling", "weather");
   int api_weather = parse_weather_response(data, CURRENTLY_KEY, 1, strlen(data));
 
   if (api_weather == -1) {
       if (publish_debug) {
-        Spark.publish("weather", "error parsing weather");
+        Particle.publish("parsing", "error parsing weather");
       }
   } else {
       weather = api_weather;
       if (publish_debug) {
-        Spark.publish("weather", conditions[weather]);
+        Particle.publish("parsing", conditions[weather]);
       }
   }
 }
@@ -132,7 +142,6 @@ void setup() {
   get_current_weather(); // Make a starting API call
   last_request_time = millis();
 }
-
 
 // The main loop
 void loop() {
